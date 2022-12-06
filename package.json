@@ -1,0 +1,18 @@
+{
+  "name": "crud-express-quotes-app",
+  "version": "1.0.0",
+  "description": "CRUD Express MongoDB app from scratch",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "dev": "nodemon server.js"
+  },
+  "author": "Kriston Burnstein",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^4.18.2"
+  },
+  "devDependencies": {
+    "nodemon": "^2.0.20"
+  }
+}
