@@ -1,25 +1,91 @@
-console.log('May Node be with you')
-console.log(__dirname)
+//console.log('May Node be with you')
+//console.log(__dirname)
 
-const { application } = require('express')
 const express = require('express')
 const bodyParser = require('body-parser')
+const MongoClient = require('mongodb').MongoClient
 const app = express()
 
-app.use(bodyParser.urlencoded({ extended: true}))
-//url encoded method with body-parser tells body-parser to extract data from the form element and add it to the body property in the request object
-//this would allow us to see values from the form elemenmt inside req.body now
+// ========================
+// Link to Database
+// ========================
+// Updates environment variables
+// @see https://zellwk.com/blog/environment-variables/
+require('./dotenv')
 
+// Replace process.env.DB_URL with your actual connection string
+const connectionString = process.env.DB_URL
 
-app.get('/', (req, res) => {
-    res.sendFile(__dirname + '/index.html')
-})
-app.post('/quotes', (req, res) => {
-    console.log(req.body)
-})
+MongoClient.connect(connectionString, { useUnifiedTopology: true })
+  .then(client => {
+    console.log('Connected to Database')
+    const db = client.db('star-wars-quotes')
+    const quotesCollection = db.collection('quotes')
 
+    // ========================
+    // Middlewares
+    // ========================
+    app.set('view engine', 'ejs')
+    app.use(bodyParser.urlencoded({ extended: true }))
+    app.use(bodyParser.json())
+    app.use(express.static('public'))
 
-app.listen(2525, function() {
-    console.log('Listening on 2525')
-})
+    // ========================
+    // Routes
+    // ========================
+    app.get('/', (req, res) => {
+      db.collection('quotes').find().toArray()
+        .then(quotes => {
+          res.render('index.ejs', { quotes: quotes })
+        })
+        .catch(/* ... */)
+    })
 
+    app.post('/quotes', (req, res) => {
+      quotesCollection.insertOne(req.body)
+        .then(result => {
+          res.redirect('/')
+        })
+        .catch(error => console.error(error))
+    })
+
+    app.put('/quotes', (req, res) => {
+      quotesCollection.findOneAndUpdate(
+        { name: 'Yoda' },
+        {
+          $set: {
+            name: req.body.name,
+            quote: req.body.quote
+          }
+        },
+        {
+          upsert: true
+        }
+      )
+        .then(result => res.json('Success'))
+        .catch(error => console.error(error))
+    })
+
+    app.delete('/quotes', (req, res) => {
+      quotesCollection.deleteOne(
+        { name: req.body.name }
+      )
+        .then(result => {
+          if (result.deletedCount === 0) {
+            return res.json('No quote to delete')
+          }
+          res.json('Deleted Darth Vadar\'s quote')
+        })
+        .catch(error => console.error(error))
+    })
+
+    // ========================
+    // Listen
+    // ========================
+    const isProduction = process.env.NODE_ENV === 'production'
+    const port = isProduction ? 7500 : 2525
+    app.listen(port, function () {
+      console.log(`listening on ${port}`)
+    })
+  })
+  .catch(console.error)
